@@ -1,0 +1,57 @@
+from fpylll import *
+from fpylll.algorithms.bkz2 import BKZReduction as BKZ2
+from fpylll.tools.quality import get_current_slope
+
+from math import log, sqrt
+import matplotlib.pyplot as plt
+
+N=113
+q=1024
+p=3
+h=[150, 189, 100, -125, -71, -237, -61, -113, 91, -365, 214, 319, 432, -25, -487, -107, 493, -379, -495, -113, 123, 401, 262, 220, -390, -69, -486, 126, 391, -450, 198, -179, 383, -258, -374, -3, -338, -174, 69, 14, 305, -260, 131, -279, 185, 138, 271, 178, 392, 88, -160, 28, 309, -309, 270, 417, -326, 84, -393, -137, -352, 91, -487, 172, -66, -322, -473, -325, -466, 371, -70, 393, -162, -127, -512, 121, -212, 226, 428, -120, 493, -7, -338, -227, 110, -428, 53, 280, 63, -84, -40, 208, 335, -97, -505, 160, -284, -66, -184, 329, 250, -335, -440, -479, 327, -239, -61, 302, 91, -196, -458, 184, 290]
+tours=8
+betas=[10,14,18,22,26,30,34,38,42]
+
+def balancedmod(f,q):
+    g = list(((f[i] + q//2) % q) - q//2 for i in range(N))
+    return g
+
+def shift(h):
+    newh = [h[(i+1) % len(h)] for i in range(len(h))]
+    return newh
+
+def BuildBasis(h_poly):
+	H = []
+	for i in range(N):
+		v = [0]*N + h_poly
+		h_poly = balancedmod(shift(h_poly),q)
+		v[i] = 1
+		H.append(v)
+	for i in range(N):
+		v = [0]*(2*N)
+		v[N+i] = q
+		H.append(v)
+	return H
+
+
+def doIt(beta):
+    H = BuildBasis(h)
+    basis = IntegerMatrix.from_matrix(H)
+    par = BKZ.Param(block_size = beta,max_loops=tours,flags = BKZ.MAX_LOOPS|BKZ.VERBOSE)
+    reducedBasis = BKZ.reduction(basis, par, float_type='mpfr',  precision=100)
+    M = GSO.Mat(reducedBasis)
+    M.update_gso()
+    profile = list(M.r())
+    for i in range(len(profile)):
+        if profile[i] < 0:
+            profile[i] = -profile[i]
+    slope = get_current_slope(profile, 0, 2 * N)
+    #rofile = [log(value) for value in profile]
+    #rint("profile:", profile)
+    print("min vector:", reducedBasis[0])
+    print("min vector norm:", sqrt(sum(v**2 for v in reducedBasis[0])))
+    print("slope:", slope)
+    return 0
+
+for beta in betas:
+    doIt(beta)
